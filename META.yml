@@ -1,0 +1,23 @@
+---
+abstract: 'A tied array which combines the power of Tie::File and Text::CSV'
+author:
+  - 'Joel Berger <joel.a.berger@gmail.com>'
+build_requires:
+  File::Temp: 0
+  Test::More: 0
+configure_requires:
+  ExtUtils::MakeMaker: 6.30
+dynamic_config: 0
+generated_by: 'Dist::Zilla version 4.200007, CPAN::Meta::Converter version 2.110440'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Tie-Array-CSV
+requires:
+  Carp: 0
+  Text::CSV: 0
+  Tie::Array: 0
+  Tie::File: 0
+  overload: 0
+version: 0.01

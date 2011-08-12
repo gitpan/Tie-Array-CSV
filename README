@@ -1,0 +1,13 @@
+
+
+This archive contains the distribution Tie-Array-CSV,
+version 0.01:
+
+  A tied array which combines the power of Tie::File and Text::CSV
+
+This software is copyright (c) 2011 by Joel Berger.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+
