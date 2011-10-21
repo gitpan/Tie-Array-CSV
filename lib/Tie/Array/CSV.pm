@@ -1,6 +1,6 @@
 package Tie::Array::CSV;
 BEGIN {
-  $Tie::Array::CSV::VERSION = '0.02';
+  $Tie::Array::CSV::VERSION = '0.03';
 }
 
 use strict;
@@ -13,6 +13,53 @@ use Text::CSV;
 
 use Tie::Array;
 our @ISA = ('Tie::Array');
+
+sub new {
+  my $class = shift;
+
+  croak "Must specify a file" unless @_;
+
+  my $file;
+  my %opts;
+
+  # handle one arg as either hashref (of opts) or file
+  if (@_ == 1) {
+    if (ref $_[0] eq 'HASH') {
+      %opts = %{ shift() };
+    } else {
+      $file = shift;
+    }
+  }
+
+  # handle file and hashref of opts
+  if (@_ == 2 and ref $_[1] eq 'HASH') {
+    $file = shift;
+    %opts = %{ shift() };
+  }
+
+  # handle file before hash of opts
+  if (@_ % 2) {
+    $file = shift;
+  }
+
+  # handle hash of opts
+  if (@_) {
+    %opts = @_;
+  }
+
+  # handle file passed has hash(ref) value to 'file' key
+  if (!$file and defined $opts{file}) {
+    $file = delete $opts{file};
+  }
+
+  # file wasn't specified as lone arg or as a hash opt
+  croak "Must specify a file" unless $file;
+
+  tie my @self, __PACKAGE__, $file, \%opts;
+
+  return \@self;
+
+}
 
 sub TIEARRAY {
   my $class = shift;
@@ -82,7 +129,7 @@ sub STORESIZE {
 
 package Tie::Array::CSV::Row;
 BEGIN {
-  $Tie::Array::CSV::Row::VERSION = '0.02';
+  $Tie::Array::CSV::Row::VERSION = '0.03';
 }
 
 use Carp;
@@ -228,13 +275,39 @@ uses the speedy L<Text::CSV_XS> if installed
 
 This module was inspired by L<Tie::CSV_File> which (sadly) hasn't been maintained. It also doesn't attempt to do any of the parsing (as that module did), but rather passes all of the heavy lifting to other modules.
 
-=head1 OPTIONS
+=head1 CONSTRUCTORS
+
+=head2 C<tie> Constructor
 
 As with any tied array, the construction uses the C<tie> function. 
 
  tie my @file, 'Tie::Array::CSV', 'filename';
 
-would tie the lexically scoped array C<@file> to the file C<filename> using this module. Following these three arguements to C<tie>, one may optionally pass a hashref containing additional configuration. Currently the only options are "pass-through" options, sent to the constructors of the different modules used internally, read more about them in those module's documentation.
+would tie the lexically scoped array C<@file> to the file C<filename> using this module. Following these three arguements to C<tie>, one may optionally pass a hashref containing additional configuration.
+
+ tie my @file, 'Tie::Array::CSV', 'filename', { opt_key => val, ... };
+
+Of course, the magical Perl C<tie> can be scary for some, for those people there is the ...
+
+=head2 C<new> Constructor
+
+[ Added in version 0.03 ]
+
+The class method C<new> constructor is more flexible in its calling. The constructor must be passed a file name, either as the first argument, or as the value to the option key C<file>. Options may be passed as key-value pairs or as a hash reference. This yields the many ways of calling C<new> shown below, one for every taste.
+
+ my $array = Tie::Array::CSV->new( 'filename' );
+ my $array = Tie::Array::CSV->new( 'filename', { opt_key => val, ... });
+ my $array = Tie::Array::CSV->new( 'filename', opt_key => val, ... );
+ my $array = Tie::Array::CSV->new( file => 'filename', opt_key => val, ... );
+ my $array = Tie::Array::CSV->new( { file => 'filename', opt_key => val, ... } );
+
+It only returns a reference to the C<tie>d array due to a limitations in how C<tie> magic works. 
+
+N.B. Should a lone argument filename and a C<file> option key both be passed to the constructor, the lone argument wins.
+
+=head2 Options
+
+Currently the only options are "pass-through" options, sent to the constructors of the different modules used internally, read more about them in those module's documentation.
 
 =over
 

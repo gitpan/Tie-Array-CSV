@@ -5,4 +5,5 @@ Makefile.PL
 README
 dist.ini
 lib/Tie/Array/CSV.pm
+t/new.t
 t/test.t
