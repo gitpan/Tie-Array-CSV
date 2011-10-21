@@ -1,6 +1,6 @@
 package Tie::Array::CSV;
 BEGIN {
-  $Tie::Array::CSV::VERSION = '0.01';
+  $Tie::Array::CSV::VERSION = '0.02';
 }
 
 use strict;
@@ -82,7 +82,7 @@ sub STORESIZE {
 
 package Tie::Array::CSV::Row;
 BEGIN {
-  $Tie::Array::CSV::Row::VERSION = '0.01';
+  $Tie::Array::CSV::Row::VERSION = '0.02';
 }
 
 use Carp;
@@ -129,9 +129,13 @@ sub STORESIZE {
   my $self = shift;
   my $new_size = shift;
 
-  $#{ $self->{fields} } = $new_size - 1;
+  my $return = (
+    $#{ $self->{fields} } = $new_size - 1
+  );
 
   $self->_update;
+
+  return $return;
 }
 
 sub SHIFT {
@@ -152,6 +156,7 @@ sub UNSHIFT {
 
   $self->_update;
 
+  return $self->FETCHSIZE();
 }
 
 sub _update {
@@ -191,11 +196,11 @@ L<Tie::File>
 
 =item *
 
-arbitrary line 
+arbitrary line access
 
 =item *
 
-access low memory use even for large files
+low memory use even for large files
 
 =back
 
@@ -225,7 +230,11 @@ This module was inspired by L<Tie::CSV_File> which (sadly) hasn't been maintaine
 
 =head1 OPTIONS
 
-As with any tied array, the construction uses the C<tie> function. C<tie my @file, 'Tie::Array::CSV', 'filename'> would tie the lexically scoped array C<@file> to the file C<filename> using this module. Following these three arguements to <tie>, one may optionally pass a hashref containing additional configuration. Currently the only options are "pass-through" options, sent to the constructors of the different modules used internally, read more about them in those module's documentation.
+As with any tied array, the construction uses the C<tie> function. 
+
+ tie my @file, 'Tie::Array::CSV', 'filename';
+
+would tie the lexically scoped array C<@file> to the file C<filename> using this module. Following these three arguements to C<tie>, one may optionally pass a hashref containing additional configuration. Currently the only options are "pass-through" options, sent to the constructors of the different modules used internally, read more about them in those module's documentation.
 
 =over
 
@@ -239,13 +248,30 @@ text_csv - hashref of options which are passed to the L<Text::CSV> constructor
 
 =back
 
+example:
+
+ tie my @file, 'Tie::Array::CSV', 'filename', { 
+   tie_file => {}, 
+   text_csv => { sep_char => ';' },
+ };
+
 =head1 ERRORS
 
 For simplicity this module C<croak>s on all errors, which are trappable using a C<$SIG{__DIE__}> handler.
 
 =head1 CAVEATS
 
+=over 
+
+=item *
+
 Much of the functionality of normal arrays is mimicked using L<Tie::Array>. The interaction of this with L<Tie::File> should be mentioned in that certain actions may be very inefficient. For example, C<(un)shift>-ing the first row of data will probably involve L<Tie::Array> asking L<Tie::File> to move each row up one line, one-by-one. As a note, the intra-row C<(un)shift> does not suffer this problem.
+
+=item *
+
+Some effort had been made to allow for fields which contain linebreaks. Linebreaks would change line numbers used for row access by L<Tie::File>. This, unfortunately, moved the module far from its stated goals, and therefore far less powerful for its intended purposes. The decsion has been made (for now) not to support such files.
+
+=back
 
 =head1 SEE ALSO
 
