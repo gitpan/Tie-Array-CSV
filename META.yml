@@ -4,20 +4,30 @@ author:
   - 'Joel Berger <joel.a.berger@gmail.com>'
 build_requires:
   File::Temp: 0
+  Module::Build: 0.3601
   Test::More: 0
 configure_requires:
-  ExtUtils::MakeMaker: 6.30
+  Module::Build: 0.3601
 dynamic_config: 0
-generated_by: 'Dist::Zilla version 4.200007, CPAN::Meta::Converter version 2.110440'
+generated_by: 'Dist::Zilla version 4.300007, CPAN::Meta::Converter version 2.120351'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: 1.4
 name: Tie-Array-CSV
+no_index:
+  file:
+    - README.pod
 requires:
   Carp: 0
+  Scalar::Util: 0
   Text::CSV: 0
   Tie::Array: 0
   Tie::File: 0
   overload: 0
-version: 0.04
+  strict: 0
+  warnings: 0
+resources:
+  bugtracker: http://github.com/jberger/Tie-Array-CSV/
+  repository: https://github.com/jberger/Tie-Array-CSV/issues
+version: 0.05

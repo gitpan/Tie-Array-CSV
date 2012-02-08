@@ -1,6 +1,6 @@
 package Tie::Array::CSV;
-BEGIN {
-  $Tie::Array::CSV::VERSION = '0.04';
+{
+  $Tie::Array::CSV::VERSION = '0.05';
 }
 
 use strict;
@@ -11,10 +11,13 @@ use Carp;
 use Tie::File;
 use Text::CSV;
 
+use Scalar::Util qw/blessed/;
+
 use Tie::Array;
 our @ISA = ('Tie::Array');
 
 sub parse_opts {
+  my $class = shift;
 
   croak "Must specify a file" unless @_;
 
@@ -63,9 +66,10 @@ sub parse_opts {
 
 sub new {
   my $class = shift;
-  my ($file, $opts) = parse_opts(@_);
+  my ($file, $opts) = $class->parse_opts(@_);
 
-  tie my @self, __PACKAGE__, $file, $opts;
+  my @self;
+  tie @self, $class, $file, $opts;
 
   return \@self;
 
@@ -73,19 +77,23 @@ sub new {
 
 sub TIEARRAY {
   my $class = shift;
-  my ($file, $opts) = parse_opts(@_);
+  my ($file, $opts) = $class->parse_opts(@_);
 
   my @tiefile;
   tie @tiefile, 'Tie::File', $file, %{ $opts->{tie_file} || {} }
     or croak "Cannot tie file $file";
 
-  my $csv = Text::CSV->new($opts->{text_csv} || {}) 
-    or croak "CSV (new) error: " . Text::CSV->error_diag();
+  my $csv;
+  if (blessed $opts->{text_csv} and $opts->{text_csv}->isa('Text::CSV')) {
+    $csv = $opts->{text_csv};
+  } else {
+    $csv = Text::CSV->new($opts->{text_csv} || {}) 
+      or croak "CSV (new) error: " . Text::CSV->error_diag();
+  }
 
   my $self = {
     file => \@tiefile,
     csv => $csv,
-    hold_row => (defined $opts->{hold_row} ? $opts->{hold_row} : 1),
   };
 
   bless $self, $class;
@@ -99,16 +107,12 @@ sub FETCH {
 
   my $line = $self->{file}[$index];
 
-  $self->{csv}->parse($line)
-    or croak "CSV parse error: " . $self->{csv}->error_diag();
-  my @fields = $self->{csv}->fields;
-
-  tie my @line, 'Tie::Array::CSV::Row', { 
+  my $rowclass = ref($self) . '::Row';
+  tie my @line, $rowclass, { 
     file => $self->{file},
     line_num => $index,
-    fields => \@fields, 
+    fields => $self->_parse($line), 
     csv => $self->{csv},
-    hold => $self->{hold_row},
   };
 
   return \@line;
@@ -118,11 +122,7 @@ sub STORE {
   my $self = shift;
   my ($index, $value) = @_;
 
-  $self->{csv}->combine(
-    ref $value ? @$value : ($value)
-  ) 
-    or croak "CSV combine error: " . $self->{csv}->error_diag();
-  $self->{file}[$index] = $self->{csv}->string;
+  $self->{file}[$index] = $self->_combine($value);
 }
 
 sub FETCHSIZE {
@@ -139,9 +139,41 @@ sub STORESIZE {
   
 }
 
+sub EXISTS { 
+  my $self = shift;
+  my ($index) = shift;
+  return exists $self->{file}[$index];
+}
+
+sub DELETE { 
+  my $self = shift;
+  my $index = shift;
+  return $self->SPLICE($index,1);
+}
+
+sub _parse {
+  my $self = shift;
+  my ($line) = @_;
+
+  $self->{csv}->parse($line)
+    or croak "CSV parse error: " . $self->{csv}->error_diag();
+
+  return [$self->{csv}->fields];
+}
+
+sub _combine {
+  my $self = shift;
+  my ($value) = @_;
+
+  $self->{csv}->combine( ref $value ? @$value : ($value) )
+    or croak "CSV combine error: " . $self->{csv}->error_diag();
+
+  return $self->{csv}->string;
+}
+
 package Tie::Array::CSV::Row;
-BEGIN {
-  $Tie::Array::CSV::Row::VERSION = '0.04';
+{
+  $Tie::Array::CSV::Row::VERSION = '0.05';
 }
 
 use Carp;
@@ -150,15 +182,13 @@ use Tie::Array;
 our @ISA = ('Tie::Array');
 
 use overload 
-  '@{}' => sub{ return @{ $_[0]{fields} } };
+  '@{}' => sub{ $_[0]{fields} };
 
 sub TIEARRAY {
   my $class = shift;
   my $self = shift;
 
   bless $self, $class;
-
-  $self->{need_update} = 0;
 
   return $self;
 }
@@ -176,11 +206,7 @@ sub STORE {
 
   $self->{fields}[$index] = $value;
 
-  if ($self->{hold}) {
-    $self->{need_update} = 1;
-  } else {
-    $self->_update;
-  }
+  $self->_update;
 
 }
 
@@ -198,11 +224,7 @@ sub STORESIZE {
     $#{ $self->{fields} } = $new_size - 1
   );
 
-  if ($self->{hold}) {
-    $self->{need_update} = 1;
-  } else {
-    $self->_update;
-  }
+  $self->_update;
 
   return $return;
 }
@@ -212,11 +234,7 @@ sub SHIFT {
 
   my $value = shift @{ $self->{fields} };
 
-  if ($self->{hold}) {
-    $self->{need_update} = 1;
-  } else {
-    $self->_update;
-  }
+  $self->_update;
 
   return $value;
 }
@@ -227,13 +245,26 @@ sub UNSHIFT {
 
   unshift @{ $self->{fields} }, $value;
 
-  if ($self->{hold}) {
-    $self->{need_update} = 1;
-  } else {
-    $self->_update;
-  }
+  $self->_update;
 
   return $self->FETCHSIZE();
+}
+
+sub DELETE {
+  my $self = shift;
+  my $index = shift;
+
+  my $return = splice @{ $self->{fields} }, $index, 1;
+  $self->_update;
+
+  return $return;
+}
+
+sub EXISTS {
+  my $self = shift;
+  my $index = shift;
+
+  return exists $self->{fields}[$index];
 }
 
 sub _update {
@@ -242,11 +273,6 @@ sub _update {
   $self->{csv}->combine(@{ $self->{fields} })
     or croak "CSV combine error: " . $self->{csv}->error_diag();
   $self->{file}[$self->{line_num}] = $self->{csv}->string;
-}
-
-sub DESTROY {
-  my $self = shift;
-  $self->_update if $self->{need_update} == 1;
 }
 
 __END__
@@ -310,7 +336,7 @@ uses the speedy L<Text::CSV_XS> if installed
 
 This module was inspired by L<Tie::CSV_File> which (sadly) hasn't been maintained. It also doesn't attempt to do any of the parsing (as that module did), but rather passes all of the heavy lifting to other modules.
 
-Note that while the L<Tie::File> prevents the need to read in the entire file, while in use, a parsed row IS held in memory. This is true whether <hold_row> is in effect or not (see L<Options> below).
+Note that while the L<Tie::File> prevents the need to read in the entire file, while in use, a parsed row IS held in memory.
 
 =head1 CONSTRUCTORS
 
@@ -359,15 +385,23 @@ C<tie_file> - hashref of options which are passed to the L<Tie::File> constructo
 
 =item *
 
-C<text_csv> - hashref of options which are passed to the L<Text::CSV> constructor
+C<text_csv> - either:
+
+=over
+
+=item *
+
+hashref of options which are passed to the L<Text::CSV> constructor
+
+=item * 
+
+an object which satisfies C<< isa('Text::CSV') >> (added in version 0.05)
+
+=back
 
 =item *
 
 C<sep_char> - for ease of use, a C<sep_char> option may be specified, which is passed to the L<Text::CSV> constructor. This option overrides a corresponding entry in the C<text_csv> pass-through hash.
-
-=item *
-
-C<hold_row> - If true, the file is not updated while the reference to the row is still in scope. The default is true. Note: that when false, the parsed row is still held in memory while the row is in scope, the ONLY difference is that the file reflects changes immediately when C<hold_row> is false. To reiterate, this option only affects file IO, not memory usage.
 
 =back
 
@@ -376,14 +410,15 @@ Equivalent examples:
  tie my @file, 'Tie::Array::CSV', 'filename', { 
    tie_file => {}, 
    text_csv => { sep_char => ';' },
-   hold_row => 0
  };
 
- tie my @file, 'Tie::Array::CSV', 'filename', sep_char => ';', hold_row => 0;
+ tie my @file, 'Tie::Array::CSV', 'filename', sep_char => ';';
+
+Note that as of version 0.05 the functionality from the former C<hold_row> option has been separated into its own subclass module L<Tie::Array::CSV::HoldRow>. If deferring row operations is of interest to you, please see that module.
 
 =head1 ERRORS
 
-For simplicity this module C<croak>s on all errors, which are trappable using a C<$SIG{__DIE__}> handler.
+For simplicity this module C<croak>s on all almost all errors, which are trappable using a C<$SIG{__DIE__}> handler. Modifing a severed row object issues a warning.
 
 =head1 CAVEATS
 
@@ -395,7 +430,7 @@ Much of the functionality of normal arrays is mimicked using L<Tie::Array>. The 
 
 =item *
 
-Some effort had been made to allow for fields which contain linebreaks. Linebreaks would change line numbers used for row access by L<Tie::File>. This, unfortunately, moved the module far from its stated goals, and therefore far less powerful for its intended purposes. The decision has been made (for now) not to support such files.
+At one time, some effort was been made to allow for fields which contain linebreaks. Quickly it became clear that linebreaks would change line numbers used for row access by L<Tie::File>. Attempts to compensate for this, unfortunately, moved the module far from its stated goals, and therefore far less powerful for its intended purposes. The decision has been made (for now) not to support such files.
 
 =back
 
@@ -427,9 +462,10 @@ Joel Berger, E<lt>joel.a.berger@gmail.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2011 by Joel Berger
+Copyright (C) 2012 by Joel Berger
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
 =cut
+

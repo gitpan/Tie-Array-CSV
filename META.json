@@ -1,0 +1,62 @@
+{
+   "abstract" : "A tied array which combines the power of Tie::File and Text::CSV",
+   "author" : [
+      "Joel Berger <joel.a.berger@gmail.com>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Dist::Zilla version 4.300007, CPAN::Meta::Converter version 2.120351",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "Tie-Array-CSV",
+   "no_index" : {
+      "file" : [
+         "README.pod"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "Module::Build" : "0.3601"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "Module::Build" : "0.3601"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Carp" : "0",
+            "Scalar::Util" : "0",
+            "Text::CSV" : "0",
+            "Tie::Array" : "0",
+            "Tie::File" : "0",
+            "overload" : "0",
+            "strict" : "0",
+            "warnings" : "0"
+         }
+      },
+      "test" : {
+         "requires" : {
+            "File::Temp" : "0",
+            "Test::More" : "0"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "http://github.com/jberger/Tie-Array-CSV/"
+      },
+      "repository" : {
+         "url" : "https://github.com/jberger/Tie-Array-CSV/issues"
+      }
+   },
+   "version" : "0.05"
+}
+
