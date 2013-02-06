@@ -1,7 +1,4 @@
 package Tie::Array::CSV::HoldRow;
-{
-  $Tie::Array::CSV::HoldRow::VERSION = '0.05';
-}
 
 use strict;
 use warnings;
@@ -131,9 +128,6 @@ sub CLEAR { shift->STORESIZE(0) }
 sub EXTEND  { }
 
 package Tie::Array::CSV::HoldRow::Row;
-{
-  $Tie::Array::CSV::HoldRow::Row::VERSION = '0.05';
-}
 
 use Carp;
 
@@ -207,7 +201,7 @@ Joel Berger, E<lt>joel.a.berger@gmail.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012 by Joel Berger
+Copyright (C) 2013 by Joel Berger
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
